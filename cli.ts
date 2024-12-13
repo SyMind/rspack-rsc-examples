@@ -1,7 +1,5 @@
 import { fork } from "child_process";
 import { rspack, Compiler } from "@rspack/core";
-// @ts-ignore
-import nodeExternals from "webpack-node-externals";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -30,13 +28,23 @@ const serverCompiler = rspack({
   resolve: {
     extensions: ["...", ".ts", ".tsx", ".jsx"],
   },
-  externals: [
-    nodeExternals({
-      allowlist: ["@rspack/core/hot/poll?100"],
-    }),
-  ],
+  externals: {
+    express: "commonjs express"
+  },
+  devtool: false,
   module: {
     rules: [
+      {
+        test: /react-server\.tsx$/,
+        layer: "react-server",
+      },
+      {
+        issuerLayer: "react-server",
+        resolve: {
+          conditionNames: ["react-server", "..."],
+        }
+      },
+
       {
         test: /\.(jsx?|tsx?)$/,
         use: [
@@ -47,6 +55,11 @@ const serverCompiler = rspack({
                 parser: {
                   syntax: "typescript",
                   tsx: true,
+                },
+                transform: {
+                  react: {
+                    runtime: 'automatic',
+                  },
                 },
               },
             },

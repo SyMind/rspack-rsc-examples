@@ -1,4 +1,5 @@
 import express from "express";
+import * as ReactDomServer from './react-dom-server';
 
 const app = express();
 
@@ -10,7 +11,7 @@ app.use(function (req, res, next) {
 });
 
 app.get("/", (req, res) => {
-  res.send("Hello World!");
+  ReactDomServer.render(req, res);
 });
 
 const server = app.listen(3001);
