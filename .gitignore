@@ -11,3 +11,10 @@ dist/
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+# Crate
+/target
+^target/
+target
+
+.swc

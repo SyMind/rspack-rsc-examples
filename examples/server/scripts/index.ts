@@ -1,5 +1,7 @@
-import { fork } from "child_process";
-import { rspack, Compiler } from "@rspack/core";
+import { fork } from "node:child_process";
+import { resolve } from "node:path";
+import { rspack, Compiler, experiments } from "@rspack/core";
+import ReactServerPlugin from './react-server-plugin';
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -44,7 +46,10 @@ const serverCompiler = rspack({
           conditionNames: ["react-server", "..."],
         }
       },
-
+      {
+        issuerLayer: "react-server",
+        loader: resolve(__dirname, "react-server-loader.ts"),
+      },
       {
         test: /\.(jsx?|tsx?)$/,
         use: [
@@ -61,6 +66,9 @@ const serverCompiler = rspack({
                     runtime: 'automatic',
                   },
                 },
+                experimental: {
+                  plugins: [["swc-plugin-react-server", {}]]
+                }
               },
             },
           },
@@ -73,7 +81,8 @@ const serverCompiler = rspack({
   },
   plugins: [
     new rspack.HotModuleReplacementPlugin(),
-    new BootPlugin()
+    new ReactServerPlugin(),
+    new BootPlugin(),
   ],
 });
 
