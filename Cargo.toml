@@ -1,0 +1,2 @@
+[workspace]
+members  = ["swc-plugin-react-server"]

@@ -6,7 +6,9 @@ settings:
 
 importers:
 
-  .:
+  .: {}
+
+  examples/server:
     dependencies:
       '@types/express':
         specifier: ^5.0.0
@@ -48,6 +50,9 @@ importers:
       react-refresh:
         specifier: ^0.14.0
         version: 0.14.2
+      swc-plugin-react-server:
+        specifier: workspace:*
+        version: link:../../packages/swc-plugin-react-server
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
@@ -55,7 +60,7 @@ importers:
         specifier: ^5.6.3
         version: 5.7.2
 
-  examples/server: {}
+  packages/swc-plugin-react-server: {}
 
 packages:
 
