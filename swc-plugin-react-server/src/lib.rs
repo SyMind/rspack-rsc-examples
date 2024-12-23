@@ -1,19 +1,19 @@
-mod react_server_components;
 mod cjs_finder;
+mod react_server_components;
 
 use serde::Deserialize;
-use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 use swc_core::ecma::visit::{visit_mut_pass, VisitMutWith};
-use swc_core::ecma::{ast::Program, transforms::testing::test_inline, visit::VisitMut};
+use swc_core::ecma::{ast::Program, visit::VisitMut};
+use swc_core::plugin::metadata::TransformPluginMetadataContextKind;
 use swc_core::plugin::{plugin_transform, proxies::TransformPluginProgramMetadata};
 
-use react_server_components::{server_components, Config};
+use react_server_components::server_components;
 
 #[derive(Clone, Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct TransformConfig {
     #[serde(default)]
-    pub app_dir: Option<PathBuf>,
+    pub is_react_server_layer: bool,
 }
 
 pub struct TransformVisitor;
@@ -46,35 +46,16 @@ pub fn process_transform(
 ) -> Program {
     let config = match metadata.get_transform_plugin_config() {
         Some(config) => serde_json::from_str::<TransformConfig>(&config)
-            .expect("invalid config for swc-loadable-components"),
+            .expect("invalid config for swc-plugin-react-server"),
         None => TransformConfig::default(),
     };
 
-    let filepath = match data.get_context(&TransformPluginMetadataContextKind::Filename) {
-        Some(s) => s,
-        None => String::from(""),
-    };
+    let filepath = metadata
+        .get_context(&TransformPluginMetadataContextKind::Filename)
+        .unwrap_or_default();
 
-    program.visit_mut_with(&mut visit_mut_pass(TransformVisitor));
-    server_components(
-        metadata.source_map.source_file,
-        react_server_components::Config {},
-        metadata.comments,
-        config.app_dir,
-    );
+    let server_components_visitor =
+        server_components(filepath, config.is_react_server_layer, metadata.comments);
+    program.visit_mut_with(&mut visit_mut_pass(server_components_visitor));
     program
 }
-
-// An example to test plugin transform.
-// Recommended strategy to test plugin's transform is verify
-// the Visitor's behavior, instead of trying to run `process_transform` with mocks
-// unless explicitly required to do so.
-test_inline!(
-    Default::default(),
-    |_| visit_mut_pass(TransformVisitor),
-    boo,
-    // Input codes
-    r#"console.log("transform");"#,
-    // Output codes after transformed with plugin
-    r#"console.log("transform");"#
-);
