@@ -18,3 +18,5 @@ dist/
 target
 
 .swc
+
+*.wasm

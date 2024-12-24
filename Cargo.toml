@@ -1,2 +1,3 @@
 [workspace]
 members  = ["swc-plugin-react-server"]
+resolver = "1"

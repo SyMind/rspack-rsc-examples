@@ -23,6 +23,28 @@ class BootPlugin {
   }
 }
 
+const swcLoader = (isReactServerLayer: boolean) => ({
+  loader: "builtin:swc-loader",
+  options: {
+    jsc: {
+      parser: {
+        syntax: "typescript",
+        tsx: true,
+      },
+      transform: {
+        react: {
+          runtime: 'automatic',
+        },
+      },
+      experimental: {
+        plugins: [["swc-plugin-react-server", {
+          isReactServerLayer: true
+        }]]
+      }
+    },
+  },
+});
+
 const serverCompiler = rspack({
   mode: isDev ? "development" : "production",
   target: "node",
@@ -52,26 +74,15 @@ const serverCompiler = rspack({
       },
       {
         test: /\.(jsx?|tsx?)$/,
+        issuerLayer: "react-server",
         use: [
-          {
-            loader: "builtin:swc-loader",
-            options: {
-              jsc: {
-                parser: {
-                  syntax: "typescript",
-                  tsx: true,
-                },
-                transform: {
-                  react: {
-                    runtime: 'automatic',
-                  },
-                },
-                experimental: {
-                  plugins: [["swc-plugin-react-server", {}]]
-                }
-              },
-            },
-          },
+          swcLoader(true),
+        ],
+      },
+      {
+        test: /\.(jsx?|tsx?)$/,
+        use: [
+          swcLoader(false),
         ],
       },
     ],
