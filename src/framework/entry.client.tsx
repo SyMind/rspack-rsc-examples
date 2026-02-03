@@ -9,6 +9,10 @@ import {
 } from 'react-server-dom-rspack/client.browser';
 
 import { rscStream } from 'rsc-html-stream/client';
+// Add the client which connects to our middleware
+// You can use full urls like 'webpack-hot-middleware/client?path=http://localhost:3000/__webpack_hmr'
+// useful if you run your app from another point like django
+import hotClient from 'webpack-hot-middleware/client?path=http://localhost:1616/__rspack_hmr&timeout=20000';
 import type { RscPayload } from './entry.rsc';
 import { createRscRenderRequest } from './request';
 
@@ -77,14 +81,13 @@ async function main() {
     });
   }
 
-  // if (import.meta.webpackHot) {
-  //   import.meta.webpackHot.accept();
-
-  //   import.meta.webpackHot.on('rsc:update', () => {
-  //     console.log('[rsc:update]');
-  //     fetchRscPayload();
-  //   });
-  // }
+  hotClient.subscribe(event => {
+    if (event.type === 'rsc:update') {
+      console.log('[rsc:update]');
+      fetchRscPayload();
+    }
+  });
+  console.log('RSC hydration completed.', );
 }
 
 // a little helper to setup events interception for client side navigation

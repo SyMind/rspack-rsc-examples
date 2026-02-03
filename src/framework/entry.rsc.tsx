@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { parentPort } from 'node:worker_threads';
 import type React from 'react';
 import type { ReactFormState } from 'react-dom/client';
 import {
@@ -11,6 +12,7 @@ import {
   type ServerEntry,
   type TemporaryReferenceSet,
 } from 'react-server-dom-rspack/server.node';
+import express from 'express';
 import { toNodeHandler } from 'srvx/node';
 import { renderHTML } from './entry.ssr.tsx';
 import { parseRenderRequest } from './request.tsx';
@@ -206,10 +208,19 @@ async function nodeHandler(
   next();
 }
 
-export default {
-  nodeHandler,
-};
+const app = express();
 
+app.use(nodeHandler);
+
+app.use(express.static(import.meta.dirname))
+
+app.listen(3000, () => {
+  if (parentPort) {
+    parentPort.postMessage({ type: 'ready' });
+  }
+  
+  console.log('Server is running on http://localhost:3000');
+});
 if (import.meta.webpackHot) {
   import.meta.webpackHot.accept();
 }

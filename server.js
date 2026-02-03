@@ -1,10 +1,15 @@
-import http from 'http';
 import path from 'path';
+import { Worker } from 'worker_threads';
 import express from 'express';
 import rspack from '@rspack/core';
 import webpackDevMiddleware from 'webpack-dev-middleware';
 import webpackHotMiddleware from 'webpack-hot-middleware';
 import ReactRefreshPlugin from '@rspack/plugin-react-refresh';
+
+let hotMiddleware;
+let onServerComponentChanged;
+let currentWorker;
+let workerRestartPromise;
 
 // Target browsers, see: https://github.com/browserslist/browserslist
 const browserTargets = ["last 2 versions", "> 0.2%", "not dead", "Firefox ESR"];
@@ -92,14 +97,7 @@ const rspackConfig = [
         mode: 'development',
         target: 'web',
         context: import.meta.dirname,
-        entry: [
-            // Add the client which connects to our middleware
-            // You can use full urls like 'webpack-hot-middleware/client?path=http://localhost:3000/__webpack_hmr'
-            // useful if you run your app from another point like django
-            'webpack-hot-middleware/client?path=/__rspack_hmr&timeout=20000',
-            // And then the actual application
-            './src/framework/entry.client.tsx',
-        ],
+        entry: './src/framework/entry.client.tsx',
         resolve: {
             extensions: ["...", ".ts", ".tsx", ".jsx"],
         },
@@ -169,13 +167,51 @@ const rspackConfig = [
         plugins: [
             new ServerPlugin({
                 onServerComponentChanges() {
+                    onServerComponentChanged = true;
                     console.log("[RSC] server component changes detected, restarting server...");
                 }
             }),
         ],
+        externalsType: 'module',
+        externals: {
+            express: 'express',
+        },
     }
 ];
 const compiler = rspack(rspackConfig);
+
+compiler.compilers[1].hooks.done.tapPromise('RestartWorker', async (stats) => {
+    if (stats.hasErrors()) {
+        console.error('[Server] Build failed with errors');
+        return;
+    }
+
+    workerRestartPromise = (async () => {
+        if (currentWorker) {
+            await currentWorker.terminate();
+            currentWorker = null;
+        }
+
+        currentWorker = await createServerWorker();
+        if (onServerComponentChanged) {
+            hotMiddleware.publish({ type: 'rsc:update' });
+        }
+        onServerComponentChanged = false;
+    })();
+    await workerRestartPromise;
+});
+
+compiler.compilers[0].hooks.done.tapPromise('WaitForWorker', async (stats) => {
+    if (workerRestartPromise) {
+        try {
+            await workerRestartPromise;
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+        } catch (error) {
+        } finally {
+            workerRestartPromise;
+        }
+    }
+});
 
 const app = express();
 
@@ -185,20 +221,42 @@ app.use(
     })
 );
 
-app.use(
-    webpackHotMiddleware(compiler.compilers[0], {
-        log: console.log,
-        path: '/__rspack_hmr',
-        heartbeat: 10 * 1000,
-    })
-);
-
-app.use(async (req, res, next) => {
-    const mod = await import('./dist/main.mjs');
-    await mod.default.nodeHandler(req, res, next);
+hotMiddleware = webpackHotMiddleware(compiler.compilers[0], {
+    log: console.log,
+    path: '/__rspack_hmr',
+    heartbeat: 10 * 1000,
 });
+app.use(hotMiddleware);
 
-const server = http.createServer(app);
-server.listen(process.env.PORT || 1616, "localhost", function () {
-    console.log('Listening on %j', server.address());
+function createServerWorker() {
+    return new Promise((resolve, reject) => {
+        const workerPath = path.join(import.meta.dirname, 'dist/main.mjs');
+        const worker = new Worker(workerPath, {
+            type: 'module',
+        });
+
+        worker.on('message', (message) => {
+            if (message.type === 'ready') {
+                resolve(worker);
+            }
+        });
+
+        worker.on('error', (error) => {
+            reject(error);
+        });
+
+        worker.on('exit', (code) => {
+            if (code !== 0) {
+                reject(new Error(`Worker stopped with exit code ${code}`));
+            }
+        });
+
+        setTimeout(() => {
+            reject(new Error('Worker initialization timeout'));
+        }, 10000);
+    });
+}
+
+const server = app.listen(1616, "localhost", function () {
+    console.log('Dev Server is running on %j', server.address());
 });
