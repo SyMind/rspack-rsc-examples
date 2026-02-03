@@ -88,6 +88,7 @@ const RSC_ENTRY = path.resolve(import.meta.dirname, "src/framework/entry.rsc.tsx
 
 const rspackConfig = [
     {
+        name: 'client',
         mode: 'development',
         target: 'web',
         context: import.meta.dirname,
@@ -121,6 +122,7 @@ const rspackConfig = [
         ],
     },
     {
+        name: 'server',
         mode: 'development',
         target: 'node',
         context: import.meta.dirname,
