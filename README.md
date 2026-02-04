@@ -10,9 +10,7 @@ The example consists of the following main files:
 
 This is the development server setup using Express, Rspack middleware and webpack-hot-middleware for HMR. It configures two Rspack compilation targets: one for the client bundle (web target) and one for the RSC server bundle (node target). The server imports the compiled RSC entry module and delegates requests to it.
 
-### rspack.config.ts
-
-This is the Rspack configuration file that defines three build targets:
+The Rspack configuration that defines three build targets:
 
 1. **Client bundle** (web target): Compiles `src/framework/entry.client.tsx` with React Refresh and HMR support
 2. **RSC server bundle** (node target): Compiles `src/framework/entry.rsc.tsx` with RSC layer support using `rspack.experiments.rsc` plugins
